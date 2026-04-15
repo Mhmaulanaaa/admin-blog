@@ -19,9 +19,9 @@ services:
         sync: false
       - key: ADMIN_NAME
         value: Admin StoryFlow
-      - key: DATA_DIR
-        value: /opt/render/project/src/data
-    disk:
-      name: storyflow-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: true
+      - key: DB_POOL_MAX
+        value: 5

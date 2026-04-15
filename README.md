@@ -1,12 +1,12 @@
 # StoryFlow
 
-Dashboard manager blog berbasis Vue, Tailwind, Express, dan SQLite.
+Dashboard manager blog berbasis Vue, Tailwind, Express, dan PostgreSQL.
 
 ## Stack
 
 - Frontend: Vue 3 + Vite + Tailwind CSS
 - Backend: Express
-- Database: SQLite (`better-sqlite3`)
+- Database: PostgreSQL (`pg`)
 - Auth: JWT login admin
 
 ## Jalankan Lokal
@@ -48,14 +48,15 @@ Langkah singkat:
 2. Import repo ke Render
 3. Pilih `Blueprint`
 4. Isi `ADMIN_PASSWORD`
-5. Deploy
+5. Isi `DATABASE_URL` dari layanan Postgres gratis Anda, misalnya Neon atau Supabase
+6. Deploy
 
 Render config yang sudah disiapkan:
 
 - build: `npm install && npm run build`
 - start: `npm run start`
 - health check: `/api/health`
-- persistent disk untuk SQLite
+- database Postgres eksternal melalui `DATABASE_URL`
 
 Referensi resmi:
 
@@ -92,9 +93,72 @@ Referensi resmi:
 Gunakan template ini sebagai acuan, jangan commit secret asli:
 
 - Backend Render: `.env.render.production.example`
+- Backend Render + Supabase: `.env.supabase.production.example`
 - Frontend Vercel: `.env.vercel.production.example`
 
 Khusus `JWT_SECRET`, gunakan string acak panjang minimal 32 karakter.
+
+Untuk database gratis, opsi yang paling praktis biasanya:
+
+- Neon
+- Supabase
+
+Yang Anda perlukan dari provider tersebut adalah connection string Postgres untuk diisi ke `DATABASE_URL`.
+
+## Konfigurasi Supabase
+
+Jika Anda memakai Supabase untuk backend yang jalan terus di Render, gunakan connection string dari **Supabase pooler session mode** agar tetap cocok untuk koneksi aplikasi backend biasa dan jaringan IPv4. Referensi resmi Supabase menyarankan:
+
+- direct connection untuk server persisten jika environment mendukung IPv6
+- **pooler session mode** untuk klien persisten yang butuh IPv4
+- pooler transaction mode untuk serverless/edge
+
+Lihat: [Supabase connection strings](https://supabase.com/docs/reference/postgres/connection-strings)
+
+Langkah singkat:
+
+1. Buka project Supabase Anda
+2. Klik `Connect`
+3. Pilih `ORMs / Clients`
+4. Salin connection string **Session mode / pooler**
+5. Isi ke `DATABASE_URL` di Render
+
+Contoh format:
+
+```env
+DATABASE_URL=postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+DATABASE_SSL=true
+DB_POOL_MAX=5
+```
+
+## Deploy Backend Agar Tidak Kena CORS
+
+Jika frontend ada di Vercel dan backend ada di Render, CORS harus diizinkan di backend.
+
+Isi environment variable backend Render seperti ini:
+
+```env
+CORS_ORIGIN=https://nama-project-anda.vercel.app
+```
+
+Kalau Anda punya domain custom juga:
+
+```env
+CORS_ORIGIN=https://nama-project-anda.vercel.app,https://www.domainanda.com
+```
+
+Lalu di Vercel, isi frontend:
+
+```env
+VITE_API_BASE_URL=https://nama-backend-anda.onrender.com/api
+```
+
+Artinya:
+
+- `CORS_ORIGIN` selalu berisi domain frontend
+- `VITE_API_BASE_URL` selalu berisi domain backend
+
+Jangan dibalik. Kalau dibalik, request frontend akan tetap gagal.
 
 ## Clone untuk Maintenance
 
@@ -111,6 +175,4 @@ npm run dev:full
 Catatan:
 
 - Source code masuk GitHub
-- File database `data/storyflow.db` tidak ikut Git
-- Data production tetap berada di server hosting
-# admin-blog
+- Data production berada di database Postgres hosting Anda, bukan di GitHub

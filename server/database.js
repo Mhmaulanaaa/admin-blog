@@ -1,88 +1,25 @@
 import bcrypt from 'bcryptjs'
-import Database from 'better-sqlite3'
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import pg from 'pg'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const configuredDataDir = process.env.DATA_DIR?.trim()
-const dataDir = configuredDataDir
-  ? path.resolve(configuredDataDir)
-  : path.resolve(__dirname, '../data')
-
-fs.mkdirSync(dataDir, { recursive: true })
-
-const db = new Database(path.join(dataDir, 'storyflow.db'))
-
-db.pragma('journal_mode = WAL')
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS admins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    name TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    excerpt TEXT NOT NULL,
-    category TEXT NOT NULL,
-    author TEXT NOT NULL,
-    cover TEXT NOT NULL,
-    content TEXT NOT NULL,
-    published_at TEXT NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('Published', 'Draft')),
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-`)
+const { Pool } = pg
 
 const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@storyflow.local'
 const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin123!'
 const adminName = process.env.ADMIN_NAME ?? 'Admin StoryFlow'
+const databaseUrl = process.env.DATABASE_URL?.trim()
+const nodeEnv = process.env.NODE_ENV ?? 'development'
+const sslMode = process.env.DATABASE_SSL ?? (nodeEnv === 'production' ? 'true' : 'false')
+const maxConnections = Number(process.env.DB_POOL_MAX ?? 5)
 
-const existingAdmin = db.prepare('SELECT id FROM admins WHERE email = ?').get(adminEmail)
-
-if (!existingAdmin) {
-  const passwordHash = bcrypt.hashSync(adminPassword, 10)
-  db.prepare('INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)').run(
-    adminEmail,
-    passwordHash,
-    adminName,
-  )
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL belum diisi. Arahkan ke database Postgres Anda.')
 }
 
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-function ensureUniqueSlug(title, id = null) {
-  const baseSlug = slugify(title) || `post-${Date.now()}`
-  let slug = baseSlug
-  let counter = 1
-
-  while (true) {
-    const row = id
-      ? db.prepare('SELECT id FROM posts WHERE slug = ? AND id != ?').get(slug, id)
-      : db.prepare('SELECT id FROM posts WHERE slug = ?').get(slug)
-
-    if (!row) {
-      return slug
-    }
-
-    counter += 1
-    slug = `${baseSlug}-${counter}`
-  }
-}
+const pool = new Pool({
+  connectionString: databaseUrl,
+  max: Number.isNaN(maxConnections) ? 5 : maxConnections,
+  ssl: sslMode === 'true' ? { rejectUnauthorized: false } : false,
+})
 
 const seedPosts = [
   {
@@ -113,20 +50,16 @@ const seedPosts = [
   },
 ]
 
-const postsCount = db.prepare('SELECT COUNT(*) AS count FROM posts').get().count
+function slugify(value) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
-if (postsCount === 0) {
-  const insertPost = db.prepare(`
-    INSERT INTO posts (title, slug, excerpt, category, author, cover, content, published_at, status)
-    VALUES (@title, @slug, @excerpt, @category, @author, @cover, @content, @publishedAt, @status)
-  `)
-
-  for (const post of seedPosts) {
-    insertPost.run({
-      ...post,
-      slug: ensureUniqueSlug(post.title),
-    })
-  }
+export async function query(text, params = []) {
+  return pool.query(text, params)
 }
 
 export function mapPost(row) {
@@ -135,7 +68,7 @@ export function mapPost(row) {
   }
 
   return {
-    id: row.id,
+    id: Number(row.id),
     title: row.title,
     slug: row.slug,
     excerpt: row.excerpt,
@@ -150,4 +83,103 @@ export function mapPost(row) {
   }
 }
 
-export { db, ensureUniqueSlug }
+export async function ensureUniqueSlug(title, id = null) {
+  const baseSlug = slugify(title) || `post-${Date.now()}`
+  let slug = baseSlug
+  let counter = 1
+
+  while (true) {
+    const sql = id
+      ? 'SELECT id FROM posts WHERE slug = $1 AND id != $2 LIMIT 1'
+      : 'SELECT id FROM posts WHERE slug = $1 LIMIT 1'
+    const params = id ? [slug, id] : [slug]
+    const { rows } = await query(sql, params)
+
+    if (rows.length === 0) {
+      return slug
+    }
+
+    counter += 1
+    slug = `${baseSlug}-${counter}`
+  }
+}
+
+async function seedAdmin() {
+  const { rows } = await query('SELECT id FROM admins WHERE email = $1 LIMIT 1', [adminEmail])
+
+  if (rows.length > 0) {
+    return
+  }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 10)
+
+  await query('INSERT INTO admins (email, password_hash, name) VALUES ($1, $2, $3)', [
+    adminEmail,
+    passwordHash,
+    adminName,
+  ])
+}
+
+async function seedInitialPosts() {
+  const { rows } = await query('SELECT COUNT(*)::int AS count FROM posts')
+
+  if (rows[0].count > 0) {
+    return
+  }
+
+  for (const post of seedPosts) {
+    const slug = await ensureUniqueSlug(post.title)
+
+    await query(
+      `INSERT INTO posts (title, slug, excerpt, category, author, cover, content, published_at, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        post.title,
+        slug,
+        post.excerpt,
+        post.category,
+        post.author,
+        post.cover,
+        post.content,
+        post.publishedAt,
+        post.status,
+      ],
+    )
+  }
+}
+
+export async function initDatabase() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id BIGSERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      excerpt TEXT NOT NULL,
+      category TEXT NOT NULL,
+      author TEXT NOT NULL,
+      cover TEXT NOT NULL,
+      content TEXT NOT NULL,
+      published_at DATE NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('Published', 'Draft')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await seedAdmin()
+  await seedInitialPosts()
+}
+
+export async function closeDatabase() {
+  await pool.end()
+}
