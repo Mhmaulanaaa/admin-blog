@@ -65,9 +65,41 @@ Referensi resmi:
 - [Render Environment Variables](https://render.com/docs/configure-environment-variables)
 - [Render Default Environment Variables](https://render.com/docs/environment-variables)
 
+## Full Stack di Vercel
+
+Project ini sekarang juga sudah disiapkan untuk jalan penuh di Vercel:
+
+- frontend Vite tetap dibuild seperti biasa
+- backend berjalan sebagai Vercel Function di `api/[...route].js`
+- database tetap di Supabase Postgres
+
+Untuk mode ini, frontend dan API memakai domain yang sama, jadi biasanya Anda tidak perlu mengatur CORS.
+
+Yang perlu dilakukan:
+
+1. Push project ke GitHub
+2. Import repo ke Vercel
+3. Tambahkan environment variables berikut di project Vercel:
+
+```bash
+JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=replace-with-a-strong-unique-password
+ADMIN_NAME=Admin StoryFlow
+DATABASE_URL=postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+DATABASE_SSL=true
+DB_POOL_MAX=3
+```
+
+4. Deploy
+
+Karena frontend memanggil `/api` pada origin yang sama, `VITE_API_BASE_URL` tidak perlu diisi untuk mode full Vercel.
+
+Route SPA dan API untuk Vercel sudah disiapkan di `vercel.json`.
+
 ## Frontend di Vercel + Backend Terpisah
 
-Project ini juga sudah disiapkan agar frontend bisa dipasang di Vercel dan backend tetap di Render atau Railway.
+Kalau Anda tetap ingin frontend Vercel dan backend platform lain, Anda masih bisa memakai mode terpisah ini.
 
 Yang perlu dilakukan:
 
@@ -81,8 +113,6 @@ VITE_API_BASE_URL=https://storyflow-api.onrender.com/api
 
 4. Deploy frontend
 
-Route SPA untuk Vercel sudah disiapkan di `vercel.json`.
-
 Referensi resmi:
 
 - [Vercel for Vite](https://vercel.com/docs/frameworks/frontend/vite)
@@ -94,7 +124,7 @@ Gunakan template ini sebagai acuan, jangan commit secret asli:
 
 - Backend Render: `.env.render.production.example`
 - Backend Render + Supabase: `.env.supabase.production.example`
-- Frontend Vercel: `.env.vercel.production.example`
+- Full Vercel + Supabase: `.env.vercel.production.example`
 
 Khusus `JWT_SECRET`, gunakan string acak panjang minimal 32 karakter.
 
@@ -159,6 +189,8 @@ Artinya:
 - `VITE_API_BASE_URL` selalu berisi domain backend
 
 Jangan dibalik. Kalau dibalik, request frontend akan tetap gagal.
+
+Jika frontend dan backend sama-sama dideploy di Vercel dari project ini, bagian CORS ini umumnya tidak diperlukan karena request API berasal dari origin yang sama.
 
 ## Clone untuk Maintenance
 
