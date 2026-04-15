@@ -62,6 +62,7 @@ Referensi resmi:
 - [Render Blueprint YAML Reference](https://render.com/docs/blueprint-spec)
 - [Render Deploys](https://render.com/docs/deploys)
 - [Render Environment Variables](https://render.com/docs/configure-environment-variables)
+- [Render Default Environment Variables](https://render.com/docs/environment-variables)
 
 ## Frontend di Vercel + Backend Terpisah
 
@@ -85,6 +86,15 @@ Referensi resmi:
 
 - [Vercel for Vite](https://vercel.com/docs/frameworks/frontend/vite)
 - [Vercel Environment Variables](https://vercel.com/docs/environment-variables)
+
+## Template Env Production
+
+Gunakan template ini sebagai acuan, jangan commit secret asli:
+
+- Backend Render: `.env.render.production.example`
+- Frontend Vercel: `.env.vercel.production.example`
+
+Khusus `JWT_SECRET`, gunakan string acak panjang minimal 32 karakter.
 
 ## Clone untuk Maintenance
 
