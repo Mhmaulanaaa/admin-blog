@@ -73,7 +73,7 @@ export function createApp({ serveFrontend = false } = {}) {
     app.use(
       cors({
         origin(origin, callback) {
-          if (!origin || allowedOrigins.includes(origin)) {
+          if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
             callback(null, true)
             return
           }

@@ -19,17 +19,42 @@ npm install
 
 2. Salin env:
 
+**Mac/Linux:**
 ```bash
 cp .env.example .env
 ```
+**Windows (Command Prompt):**
+```cmd
+copy .env.example .env
+```
 
-3. Jalankan full stack:
+3. Setup Database (PostgreSQL):
+Pastikan database PostgreSQL sudah terinstall dan aktif di lokal Anda. 
+
+**Untuk pengguna macOS (via Homebrew):**
+```bash
+brew install postgresql@14
+brew services start postgresql@14
+psql postgres -c "CREATE USER postgres WITH PASSWORD 'postgres' SUPERUSER;"
+createdb -U postgres storyflow
+```
+
+**Untuk pengguna Windows:**
+- Unduh installer resmi dari [PostgreSQL for Windows](https://www.postgresql.org/download/windows/). Ikuti petunjuk instalasinya hingga selesai.
+- Pastikan command `psql` sudah masuk ke konfigurasi System PATH Windows Anda (biasanya di `C:\Program Files\PostgreSQL\<version>\bin`).
+- Buka **Command Prompt** / **PowerShell** lalu jalankan pembuatan database:
+```cmd
+psql -U postgres -c "CREATE USER postgres WITH PASSWORD 'postgres' SUPERUSER;"
+createdb -U postgres storyflow
+```
+
+4. Jalankan full stack:
 
 ```bash
 npm run dev:full
 ```
 
-Frontend akan berjalan di `http://localhost:5173` dan backend di `http://localhost:3000`.
+Frontend akan berjalan di `http://localhost:5173` dan backend otomatis terhubung database dan berjalan di `http://localhost:3000`.
 
 ## Login Admin Default
 
@@ -67,13 +92,14 @@ Referensi resmi:
 
 ## Full Stack di Vercel
 
-Project ini sekarang juga sudah disiapkan untuk jalan penuh di Vercel:
+Project ini sudah dirancang agar dapat diupload dan berjalan penuh di Vercel secara otomatis (Frontend & Backend dalam satu tempat).
 
-- frontend Vite tetap dibuild seperti biasa
-- backend berjalan sebagai Vercel Function di `api/[...route].js`
-- database tetap di Supabase Postgres
+**Bagaimana Vercel menjalankannya?**
+- **Frontend (Vite):** Vercel sangat pintar mendeteksi Vite. Ia akan menjalankan `npm run build` dan menyajikan foldernya. Konfigurasi `vercel.json` memaksa semua rute untuk fallback ke `index.html` (Mendukung mode SPA).
+- **Backend (Express):** Vercel mengubah seluruh file di dalam folder `api/` menjadi **Serverless Functions**. Berkat file `api/[...route].js`, aplikasi Express kita dibungkus dan diakses setiap kali ada request ke `/api/*`. Anda tidak butuh server khusus!
+- **Database:** Memakai Postgres eksternal (Rekomendasi: Supabase).
 
-Untuk mode ini, frontend dan API memakai domain yang sama, jadi biasanya Anda tidak perlu mengatur CORS.
+Untuk mode ini, frontend dan backend memakai URL domain yang sama, jadi Anda **tidak akan mengalami error CORS**.
 
 Yang perlu dilakukan:
 
@@ -194,13 +220,23 @@ Jika frontend dan backend sama-sama dideploy di Vercel dari project ini, bagian 
 
 ## Clone untuk Maintenance
 
-Tetap bisa dipakai di komputer lain:
+Bisa dilanjutkan/dikloning ke komputer lain dengan catatan perangkat tersebut sudah memiliki background servis PostgreSQL yang berjalan:
 
 ```bash
 git clone <repo-url>
 cd <repo-folder>
 npm install
+
+# Salin enviroment
+# Mac/Linux:
 cp .env.example .env
+# Windows: 
+# copy .env.example .env
+
+# Buat ulang database storyflow di perangkat baru 
+# (Pastikan PostgreSQL sudah aktif)
+createdb -U postgres storyflow
+
 npm run dev:full
 ```
 
