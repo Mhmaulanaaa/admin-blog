@@ -63,160 +63,38 @@ Frontend akan berjalan di `http://localhost:5173` dan backend otomatis terhubung
 
 Sebaiknya ganti password ini sebelum production.
 
-## Deploy ke Render
+## Deploy Frontend di Vercel & Backend di Railway (Monorepo)
 
-Project ini sudah siap untuk deploy full-stack ke Render memakai `render.yaml`.
+Project ini bersifat Monorepo (Frontend & Backend digabung). Sangat dimungkinkan untuk memecahnya ke hosting berbeda dari satu repositori yang sama: Vercel untuk Frontend (Vue) dan Railway untuk Backend (Express). Kami telah menyiapkan folder dan `railway.toml` yang mendukung spesifikasi ini.
 
-Langkah singkat:
+### Langkah 1: Deploy Backend ke Railway
 
-1. Push project ke GitHub
-2. Import repo ke Render
-3. Pilih `Blueprint`
-4. Isi `ADMIN_PASSWORD`
-5. Isi `DATABASE_URL` dari layanan Postgres gratis Anda, misalnya Neon atau Supabase
-6. Deploy
+Railway akan otomatis mendeteksi konfigurasi `railway.toml` dan `package.json` yang sudah diubah untuk hanya mempedulikan backend (`npm start`).
 
-Render config yang sudah disiapkan:
+1. Buat project baru di [Railway](https://railway.app/) -> `Deploy from GitHub repo`, dan pilih repositori Anda.
+2. Tambahkan database: Di project yang sama, klik `New` -> `Database` -> `Add PostgreSQL`.
+3. Buka pengaturan instance/aplikasi Node.js (Backend) Anda, masuk ke tab **Variables** dan tambahkan:
+   - `DATABASE_URL` = Salin dari URL database PostgreSQL yang baru dibuat (biasanya bisa direferensikan variabel `${{ Postgres.DATABASE_URL }}`).
+   - `JWT_SECRET` = String acak sangat rahasia untuk Token.
+   - `ADMIN_EMAIL` = Email login dashboard Anda.
+   - `ADMIN_PASSWORD` = Password login Anda.
+   - `CORS_ORIGIN` = Isi dengan domain Frontend Vercel (karena Anda belum mendeploy Vercel di tahap ini, abaikan sementara URL-nya atau isi bebas).
+4. Masuk ke tab **Settings** -> `Networking` -> Klik `Generate Domain` untuk mendapatkan URL publik API Anda (contoh: `https://backend-web.up.railway.app`).
 
-- build: `npm install && npm run build`
-- start: `npm run start`
-- health check: `/api/health`
-- database Postgres eksternal melalui `DATABASE_URL`
+### Langkah 2: Deploy Frontend ke Vercel
 
-Referensi resmi:
+Vercel akan mengeksekusi `npm run build` dan memyajikan folder Frontend statis. Node server / folder `api` sudah kita buang untuk mengefisiensikan tugasnya.
 
-- [Render Blueprint YAML Reference](https://render.com/docs/blueprint-spec)
-- [Render Deploys](https://render.com/docs/deploys)
-- [Render Environment Variables](https://render.com/docs/configure-environment-variables)
-- [Render Default Environment Variables](https://render.com/docs/environment-variables)
+1. Buka [Vercel](https://vercel.com/) dan buat project baru dari repositori GitHub yang sama persis.
+2. Saat layar _Configure Project_, biarkan Build Command default. 
+3. Di bagian **Environment Variables**, sangat krusial untuk mengisikan ini:
+   - `VITE_API_BASE_URL` = Masukkan URL domain Railway Anda yang didapat di Langkah 1 (contoh: `https://backend-web.up.railway.app/api`). Pastikan diakhiri `/api`.
+4. Klik **Deploy** dan catat URL Frontend Anda (contoh: `https://frontend.vercel.app`).
 
-## Full Stack di Vercel
+### Langkah 3: Bebas CORS
 
-Project ini sudah dirancang agar dapat diupload dan berjalan penuh di Vercel secara otomatis (Frontend & Backend dalam satu tempat).
-
-**Bagaimana Vercel menjalankannya?**
-- **Frontend (Vite):** Vercel sangat pintar mendeteksi Vite. Ia akan menjalankan `npm run build` dan menyajikan foldernya. Konfigurasi `vercel.json` memaksa semua rute untuk fallback ke `index.html` (Mendukung mode SPA).
-- **Backend (Express):** Vercel mengubah seluruh file di dalam folder `api/` menjadi **Serverless Functions**. Berkat file `api/[...route].js`, aplikasi Express kita dibungkus dan diakses setiap kali ada request ke `/api/*`. Anda tidak butuh server khusus!
-- **Database:** Memakai Postgres eksternal (Rekomendasi: Supabase).
-
-Untuk mode ini, frontend dan backend memakai URL domain yang sama, jadi Anda **tidak akan mengalami error CORS**.
-
-Yang perlu dilakukan:
-
-1. Push project ke GitHub
-2. Import repo ke Vercel
-3. Tambahkan environment variables berikut di project Vercel:
-
-```bash
-JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
-ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=replace-with-a-strong-unique-password
-ADMIN_NAME=Admin StoryFlow
-DATABASE_URL=postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
-DATABASE_SSL=true
-DB_POOL_MAX=3
-```
-
-4. Deploy
-
-Karena frontend memanggil `/api` pada origin yang sama, `VITE_API_BASE_URL` tidak perlu diisi untuk mode full Vercel.
-
-Route SPA dan API untuk Vercel sudah disiapkan di `vercel.json`.
-
-## Frontend di Vercel + Backend Terpisah
-
-Kalau Anda tetap ingin frontend Vercel dan backend platform lain, Anda masih bisa memakai mode terpisah ini.
-
-Yang perlu dilakukan:
-
-1. Deploy backend dulu
-2. Ambil URL backend, misalnya `https://storyflow-api.onrender.com/api`
-3. Di Vercel, tambahkan env:
-
-```bash
-VITE_API_BASE_URL=https://storyflow-api.onrender.com/api
-```
-
-4. Deploy frontend
-
-Referensi resmi:
-
-- [Vercel for Vite](https://vercel.com/docs/frameworks/frontend/vite)
-- [Vercel Environment Variables](https://vercel.com/docs/environment-variables)
-
-## Template Env Production
-
-Gunakan template ini sebagai acuan, jangan commit secret asli:
-
-- Backend Render: `.env.render.production.example`
-- Backend Render + Supabase: `.env.supabase.production.example`
-- Full Vercel + Supabase: `.env.vercel.production.example`
-
-Khusus `JWT_SECRET`, gunakan string acak panjang minimal 32 karakter.
-
-Untuk database gratis, opsi yang paling praktis biasanya:
-
-- Neon
-- Supabase
-
-Yang Anda perlukan dari provider tersebut adalah connection string Postgres untuk diisi ke `DATABASE_URL`.
-
-## Konfigurasi Supabase
-
-Jika Anda memakai Supabase untuk backend yang jalan terus di Render, gunakan connection string dari **Supabase pooler session mode** agar tetap cocok untuk koneksi aplikasi backend biasa dan jaringan IPv4. Referensi resmi Supabase menyarankan:
-
-- direct connection untuk server persisten jika environment mendukung IPv6
-- **pooler session mode** untuk klien persisten yang butuh IPv4
-- pooler transaction mode untuk serverless/edge
-
-Lihat: [Supabase connection strings](https://supabase.com/docs/reference/postgres/connection-strings)
-
-Langkah singkat:
-
-1. Buka project Supabase Anda
-2. Klik `Connect`
-3. Pilih `ORMs / Clients`
-4. Salin connection string **Session mode / pooler**
-5. Isi ke `DATABASE_URL` di Render
-
-Contoh format:
-
-```env
-DATABASE_URL=postgresql://postgres.PROJECT_REF:YOUR_PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
-DATABASE_SSL=true
-DB_POOL_MAX=5
-```
-
-## Deploy Backend Agar Tidak Kena CORS
-
-Jika frontend ada di Vercel dan backend ada di Render, CORS harus diizinkan di backend.
-
-Isi environment variable backend Render seperti ini:
-
-```env
-CORS_ORIGIN=https://nama-project-anda.vercel.app
-```
-
-Kalau Anda punya domain custom juga:
-
-```env
-CORS_ORIGIN=https://nama-project-anda.vercel.app,https://www.domainanda.com
-```
-
-Lalu di Vercel, isi frontend:
-
-```env
-VITE_API_BASE_URL=https://nama-backend-anda.onrender.com/api
-```
-
-Artinya:
-
-- `CORS_ORIGIN` selalu berisi domain frontend
-- `VITE_API_BASE_URL` selalu berisi domain backend
-
-Jangan dibalik. Kalau dibalik, request frontend akan tetap gagal.
-
-Jika frontend dan backend sama-sama dideploy di Vercel dari project ini, bagian CORS ini umumnya tidak diperlukan karena request API berasal dari origin yang sama.
+Agar login bisa berfungsi dengan baik, pastikan Backend Anda mengizinkan trafik (CORS) dari Vercel Anda. 
+- Hubungkan/Ubah kembali variabel `CORS_ORIGIN` di menu Variables Railway dengan Link Frontend Vercel Anda secera utuh (tanpa garis miring di akhir url), contoh: `CORS_ORIGIN=https://frontend.vercel.app`.
 
 ## Clone untuk Maintenance
 
