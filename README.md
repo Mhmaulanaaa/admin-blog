@@ -63,38 +63,27 @@ Frontend akan berjalan di `http://localhost:5173` dan backend otomatis terhubung
 
 Sebaiknya ganti password ini sebelum production.
 
-## Deploy Frontend di Vercel & Backend di Railway (Monorepo)
+## Full Stack di Vercel (Frontend & Serverless Backend)
 
-Project ini bersifat Monorepo (Frontend & Backend digabung). Sangat dimungkinkan untuk memecahnya ke hosting berbeda dari satu repositori yang sama: Vercel untuk Frontend (Vue) dan Railway untuk Backend (Express). Kami telah menyiapkan folder dan `railway.toml` yang mendukung spesifikasi ini.
+Project ini dirancang agar dapat diupload dan berjalan secara otomatis di Vercel dalam mode Monorepo (Frontend & Backend dalam satu tempat yang sama). 
 
-### Langkah 1: Deploy Backend ke Railway
+**Bagaimana Vercel menjalankannya?**
+- **Frontend (Vite):** Vercel sangat pintar mendeteksi Vite. Ia akan menjalankan `npm run build` dan menyajikan folder `dist/` sebagai aplikasi SPA.
+- **Backend (Express):** Vercel mengubah seluruh file di dalam folder `api/` menjadi **Serverless Functions**. Berkat file "Shim" `api/[...route].js`, keseluruhan aplikasi Express Anda dibungkus secara otomatis oleh Vercel. Setiap request ke `/api/*` langsung diproses ke dalam Express JS tanpa perlu server 24-jam aktif!
+- **Zero CORS:** Karena frontend dan backend diproses dari 1 domain yang identik (oleh vercel), URL tujuan backend otomatis sebidang dengan Frontend. Tidak akan pernah ada masalah CORS.
 
-Railway akan otomatis mendeteksi konfigurasi `railway.toml` dan `package.json` yang sudah diubah untuk hanya mempedulikan backend (`npm start`).
+Mengupload project ini sangat mudah:
 
-1. Buat project baru di [Railway](https://railway.app/) -> `Deploy from GitHub repo`, dan pilih repositori Anda.
-2. Tambahkan database: Di project yang sama, klik `New` -> `Database` -> `Add PostgreSQL`.
-3. Buka pengaturan instance/aplikasi Node.js (Backend) Anda, masuk ke tab **Variables** dan tambahkan:
-   - `DATABASE_URL` = Salin dari URL database PostgreSQL yang baru dibuat (biasanya bisa direferensikan variabel `${{ Postgres.DATABASE_URL }}`).
-   - `JWT_SECRET` = String acak sangat rahasia untuk Token.
-   - `ADMIN_EMAIL` = Email login dashboard Anda.
-   - `ADMIN_PASSWORD` = Password login Anda.
-   - `CORS_ORIGIN` = Isi dengan domain Frontend Vercel (karena Anda belum mendeploy Vercel di tahap ini, abaikan sementara URL-nya atau isi bebas).
-4. Masuk ke tab **Settings** -> `Networking` -> Klik `Generate Domain` untuk mendapatkan URL publik API Anda (contoh: `https://backend-web.up.railway.app`).
-
-### Langkah 2: Deploy Frontend ke Vercel
-
-Vercel akan mengeksekusi `npm run build` dan memyajikan folder Frontend statis. Node server / folder `api` sudah kita buang untuk mengefisiensikan tugasnya.
-
-1. Buka [Vercel](https://vercel.com/) dan buat project baru dari repositori GitHub yang sama persis.
-2. Saat layar _Configure Project_, biarkan Build Command default. 
-3. Di bagian **Environment Variables**, sangat krusial untuk mengisikan ini:
-   - `VITE_API_BASE_URL` = Masukkan URL domain Railway Anda yang didapat di Langkah 1 (contoh: `https://backend-web.up.railway.app/api`). Pastikan diakhiri `/api`.
-4. Klik **Deploy** dan catat URL Frontend Anda (contoh: `https://frontend.vercel.app`).
-
-### Langkah 3: Bebas CORS
-
-Agar login bisa berfungsi dengan baik, pastikan Backend Anda mengizinkan trafik (CORS) dari Vercel Anda. 
-- Hubungkan/Ubah kembali variabel `CORS_ORIGIN` di menu Variables Railway dengan Link Frontend Vercel Anda secera utuh (tanpa garis miring di akhir url), contoh: `CORS_ORIGIN=https://frontend.vercel.app`.
+1. Push project Anda ke GitHub.
+2. Buka [Vercel](https://vercel.com/) dan _Import Project_ dari repositori GitHub tadi.
+3. Di panel **Environment Variables** (sangat krusial), isikan variabel dari cloud provider database PostgreSQL Anda (contohnya Supabase):
+   - `JWT_SECRET` = _[Masukkan String rahasia acak, wajib!]_
+   - `ADMIN_EMAIL` = admin@domain.com
+   - `ADMIN_PASSWORD` = _[Isi Password]_
+   - `DATABASE_URL` = postgresql://postgres:password@host:5432/postgres
+   - `DATABASE_SSL` = true
+4. Tidak perlu mendefinisikan `VITE_API_BASE_URL` maupun `CORS_ORIGIN` ketika di-deploy dalam keadaan Full Stack di Vercel.
+5. Klik **Deploy** dan catat URL produksi Vercel Anda. Seluruh UI dan API sekarang ada di ranah Cloud sepenuhnya.
 
 ## Clone untuk Maintenance
 
