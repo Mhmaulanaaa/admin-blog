@@ -1,78 +1,81 @@
 <script setup>
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { authState, logout } from './stores/auth'
+import { computed } from "vue";
+import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
+import { authState, logout } from "./stores/auth";
 
-const route = useRoute()
-const router = useRouter()
+const route = useRoute();
+const router = useRouter();
 
-const isAdminRoute = computed(() => route.path.startsWith('/admin'))
+const isAdminRoute = computed(() => route.path.startsWith("/admin"));
 
 const handleLogout = async () => {
-  logout()
-  await router.push('/admin/login')
-}
+  logout();
+  await router.push("/admin/login");
+};
 </script>
 
 <template>
-  <div class="min-h-screen bg-glow text-ink">
-    <header class="sticky top-0 z-30 border-b border-white/70 bg-sand/80 backdrop-blur">
-      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4 lg:px-10">
-        <RouterLink to="/" class="block">
-          <p class="font-display text-2xl font-bold tracking-tight text-brand-700">StoryFlow</p>
-          <p class="text-sm text-slate-500">Blog manager dengan admin dashboard</p>
+  <div class="flex min-h-screen flex-col font-body">
+    <header
+      class="sticky top-0 z-40 w-full border-b border-gray-200 bg-white/90 backdrop-blur-md"
+    >
+      <div
+        class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8"
+      >
+        <!-- Logo -->
+        <RouterLink to="/" class="flex flex-col">
+          <span
+            class="font-display text-xl font-bold tracking-tight text-gray-900"
+            >EasyTrends</span
+          >
         </RouterLink>
 
-        <nav class="flex flex-wrap items-center gap-3">
+        <!-- Nav -->
+        <nav class="flex items-center gap-4">
           <RouterLink
+            v-if="!isAdminRoute"
             to="/"
-            class="rounded-full px-4 py-2 text-sm font-semibold transition"
-            :class="
-              !isAdminRoute
-                ? 'bg-brand-600 text-white shadow-soft'
-                : 'bg-white text-slate-600 hover:bg-slate-100'
-            "
+            class="text-sm font-medium text-gray-600 transition hover:text-gray-900"
           >
-            Landing Page
+            Home
           </RouterLink>
 
-          <RouterLink
-            v-if="authState.token"
-            to="/admin/dashboard"
-            class="rounded-full px-4 py-2 text-sm font-semibold transition"
-            :class="
-              isAdminRoute
-                ? 'bg-ink text-white shadow-soft'
-                : 'bg-white text-slate-600 hover:bg-slate-100'
-            "
-          >
-            Dashboard
-          </RouterLink>
-
-          <RouterLink
-            v-else
-            to="/admin/login"
-            class="rounded-full px-4 py-2 text-sm font-semibold transition"
-            :class="
-              isAdminRoute
-                ? 'bg-ink text-white shadow-soft'
-                : 'bg-white text-slate-600 hover:bg-slate-100'
-            "
-          >
-            Login Admin
-          </RouterLink>
-
-          <button
-            v-if="authState.token"
-            class="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-            @click="handleLogout"
-          >
-            Logout
-          </button>
+          <template v-if="authState.token">
+            <RouterLink
+              to="/admin/dashboard"
+              class="text-sm font-medium text-brand-600 transition hover:text-brand-700"
+            >
+              Dashboard
+            </RouterLink>
+            <button
+              class="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
+              @click="handleLogout"
+            >
+              Logout
+            </button>
+          </template>
+          <template v-else>
+            <RouterLink
+              to="/admin/login"
+              class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+            >
+              Sign In
+            </RouterLink>
+          </template>
         </nav>
       </div>
     </header>
 
-    <RouterView />
+    <main class="flex-1">
+      <RouterView />
+    </main>
+
+    <footer
+      class="mt-auto border-t border-gray-200 bg-white py-8 text-center text-sm text-gray-500"
+    >
+      <div class="mx-auto max-w-6xl px-4">
+        &copy; {{ new Date().getFullYear() }} StoryFlow. All rights reserved.
+      </div>
+    </footer>
   </div>
 </template>

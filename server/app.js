@@ -187,6 +187,69 @@ export function createApp({ serveFrontend = false } = {}) {
     return res.status(201).json({ post: mapPost(rows[0]) })
   })
 
+  app.post('/api/admin/generate', authMiddleware, async (req, res) => {
+    const topic = req.body.topic?.trim()
+    if (!topic) {
+      return res.status(400).json({ message: 'Topik harus diisi.' })
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      return res.status(500).json({
+        message: 'Kunci GEMINI_API_KEY belum dikonfigurasi di file .env server Anda.',
+      })
+    }
+
+    try {
+      const prompt = `Anda adalah penulis artikel SEO profesional. Tulislah artikel blog menarik tentang topik: "${topic}". 
+      Format respons wajib dalam format JSON murni TANPA markdown block (\`\`\`json) dengan struktur berikut:
+      {
+        "title": "Judul Artikel Menarik",
+        "excerpt": "Ringkasan sangat singkat 1-2 kalimat (max 150 karakter) yang menggugah penasaran.",
+        "category": "Technology/Business/dll",
+        "content": "Isi artikel lengkap minimal 4 paragraf. Setiap paragraf dipisahkan oleh karakter newline (\\n) murni, bukan HTML tags."
+      }`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              responseMimeType: 'application/json',
+            },
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Gagal berkomunikasi dengan server AI Gemini.')
+      }
+
+      const data = await response.json()
+      const text = data.candidates[0].content.parts[0].text
+      const result = JSON.parse(text)
+
+      // Cari cover dari source unsplash secara random berdasarkan kategori
+      const coverUrl = `https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1000` // Hard fallback if dynamic source goes wrong
+      const sourceUrl = \`https://source.unsplash.com/800x600/?\${encodeURIComponent(result.category)}\`
+      
+      return res.json({
+        title: result.title,
+        excerpt: result.excerpt,
+        category: result.category,
+        content: result.content,
+        cover: sourceUrl || coverUrl, // (Note: source.unsplash is deprecated, it redirects, but still works as a placeholder)
+      })
+    } catch (err) {
+      console.error('AI Gen Error:', err)
+      return res.status(500).json({ message: 'Terjadi kesalahan saat memproses data AI.' })
+    }
+  })
+
   app.put('/api/admin/posts/:id', authMiddleware, async (req, res) => {
     const { rows: existingRows } = await query('SELECT * FROM posts WHERE id = $1 LIMIT 1', [
       req.params.id,

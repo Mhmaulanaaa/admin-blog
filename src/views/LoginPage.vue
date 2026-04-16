@@ -31,86 +31,65 @@ async function submit() {
 
 <template>
   <main
-    class="mx-auto grid min-h-[calc(100vh-89px)] max-w-7xl items-center gap-8 px-6 py-12 lg:grid-cols-[0.95fr_1.05fr] lg:px-10 lg:py-16"
+    class="flex min-h-[calc(100vh-64px)] items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8"
   >
-    <section
-      class="rounded-[2rem] border border-brand-100 bg-brand-600 p-8 text-white shadow-soft lg:p-10"
+    <div
+      class="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-sm border border-gray-200 sm:p-10"
     >
-      <p class="text-sm uppercase tracking-[0.22em] text-brand-100">
-        Admin Access
-      </p>
-      <h1 class="mt-3 font-display text-4xl font-bold leading-tight">
-        Login untuk mengelola posting dan menyimpannya permanen.
-      </h1>
-      <p class="mt-5 max-w-xl leading-8 text-brand-100">
-        Dashboard admin sekarang menggunakan backend dan database SQLite.
-        Setelah login, Anda bisa membuat, mengedit, dan menghapus post yang
-        langsung tersimpan di server.
-      </p>
-
-      <div
-        class="mt-8 rounded-[1.5rem] bg-white/10 p-5 text-sm leading-7 text-brand-50"
-      >
-        <!-- <p class="font-semibold text-white">Akun default untuk percobaan:</p>
-        <p>Email: <strong>admin@storyflow.local</strong></p>
-        <p>Password: <strong>Admin123!</strong></p> -->
-      </div>
-    </section>
-
-    <section
-      class="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-soft lg:p-10"
-    >
-      <p
-        class="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400"
-      >
-        Login Admin
-      </p>
-      <h2 class="mt-2 font-display text-3xl font-bold text-slate-900">
-        Masuk ke dashboard
-      </h2>
-
-      <form class="mt-8 space-y-5" @submit.prevent="submit">
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700"
-            >Email</label
-          >
-          <input
-            v-model="form.email"
-            placeholder="Masukkan Email"
-            type="email"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700"
-            >Password</label
-          >
-          <input
-            placeholder="Masukkan Password"
-            v-model="form.password"
-            type="password"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
-        </div>
-
-        <div
-          v-if="error"
-          class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+      <div class="text-center">
+        <h2
+          class="font-display text-3xl font-bold tracking-tight text-gray-900"
         >
+          Welcome Back
+        </h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Sign in to access your EasyTrends dashboard
+        </p>
+      </div>
+
+      <form class="mt-8 space-y-6" @submit.prevent="submit">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700"
+              >Email address</label
+            >
+            <input
+              v-model="form.email"
+              type="email"
+              required
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700"
+              >Password</label
+            >
+            <input
+              v-model="form.password"
+              type="password"
+              required
+              class="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+
+        <div v-if="error" class="rounded-lg bg-red-50 p-4 text-sm text-red-700">
           {{ error }}
         </div>
 
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {{ loading ? "Memproses..." : "Login Sekarang" }}
-        </button>
+        <div>
+          <button
+            type="submit"
+            :disabled="loading"
+            class="flex w-full justify-center rounded-lg border border-transparent bg-brand-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50 transition"
+          >
+            {{ loading ? "Signing in..." : "Sign In" }}
+          </button>
+        </div>
       </form>
-    </section>
+    </div>
   </main>
 </template>

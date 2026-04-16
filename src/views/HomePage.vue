@@ -7,7 +7,16 @@ const posts = ref([])
 const loading = ref(true)
 const error = ref('')
 
+// Compute reading time based on a standard 200 words per minute
+function getReadingTime(content) {
+  if (!content) return '1 min read'
+  const words = content.trim().split(/\s+/).length
+  const minutes = Math.ceil(words / 200)
+  return `${minutes} min read`
+}
+
 const featuredPost = computed(() => posts.value[0] ?? null)
+const remainingPosts = computed(() => posts.value.slice(1))
 
 async function loadPosts() {
   loading.value = true
@@ -27,124 +36,110 @@ onMounted(loadPosts)
 </script>
 
 <template>
-  <main>
-    <section class="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-16">
-      <div class="rounded-[2rem] border border-white/70 bg-white/85 p-8 shadow-soft">
-        <p class="mb-3 inline-flex rounded-full bg-brand-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-brand-700">
-          Featured Story
-        </p>
+  <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    
+    <!-- Ad Slot: Top Banner -->
+    <div class="mb-10 w-full bg-gray-50 border border-dashed border-gray-300 flex flex-col items-center justify-center p-4 min-h-[100px] text-gray-400 rounded-xl relative overflow-hidden">
+      <span class="text-xs uppercase tracking-widest font-semibold mb-1">Advertisement</span>
+      <span class="text-sm">Put your Adsterra 728x90 script here</span>
+      <!-- <script src="..."></script> -->
+    </div>
 
-        <div v-if="loading" class="space-y-4">
-          <div class="h-72 animate-pulse rounded-[1.5rem] bg-slate-200"></div>
-          <div class="h-8 w-2/3 animate-pulse rounded-full bg-slate-200"></div>
-          <div class="h-28 animate-pulse rounded-[1.5rem] bg-slate-100"></div>
-        </div>
+    <!-- Error State -->
+    <div v-if="error" class="mb-8 rounded-lg bg-red-50 p-4 text-red-700">
+      {{ error }}
+    </div>
 
-        <div v-else-if="featuredPost" class="space-y-5">
-          <img
-            :src="featuredPost.cover"
-            :alt="featuredPost.title"
-            class="h-72 w-full rounded-[1.5rem] object-cover"
-          />
-          <div class="space-y-4">
-            <div class="flex flex-wrap gap-3 text-sm text-slate-500">
-              <span class="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                {{ featuredPost.category }}
-              </span>
-              <span>{{ featuredPost.publishedAt }}</span>
-              <span>{{ featuredPost.author }}</span>
-            </div>
-            <h1 class="font-display text-4xl font-bold leading-tight text-slate-900">
-              {{ featuredPost.title }}
-            </h1>
-            <p class="max-w-2xl text-lg leading-8 text-slate-600">
-              {{ featuredPost.excerpt }}
-            </p>
-            <RouterLink
-              :to="`/post/${featuredPost.slug}`"
-              class="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
-            >
-              Baca Artikel
-            </RouterLink>
-          </div>
-        </div>
-
-        <div v-else class="rounded-[1.5rem] bg-slate-50 p-8 text-slate-500">
-          Belum ada artikel yang dipublikasikan.
-        </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="animate-pulse space-y-12">
+      <!-- Hero Loading -->
+      <div class="h-[400px] w-full rounded-2xl bg-gray-200"></div>
+      <!-- Grid Loading -->
+      <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div v-for="i in 6" :key="i" class="h-64 rounded-xl bg-gray-200"></div>
       </div>
+    </div>
 
-      <div class="space-y-6">
-        <div class="rounded-[2rem] border border-brand-100 bg-brand-600 p-8 text-white shadow-soft">
-          <p class="text-sm uppercase tracking-[0.22em] text-brand-100">Content Control</p>
-          <h2 class="mt-3 font-display text-3xl font-bold leading-tight">
-            Post dari dashboard sekarang tersimpan permanen di database.
-          </h2>
-          <p class="mt-4 text-sm leading-7 text-brand-100">
-            Login sebagai admin, tulis artikel baru, dan landing page akan otomatis mengambil data
-            terbaru dari backend.
-          </p>
-          <RouterLink
-            to="/admin/login"
-            class="mt-6 inline-flex rounded-full bg-white px-5 py-3 text-sm font-bold text-brand-700 transition hover:bg-brand-50"
-          >
-            Masuk ke Admin
-          </RouterLink>
-        </div>
-
-        <div class="rounded-[2rem] border border-white/70 bg-white/85 p-8 shadow-soft">
-          <p class="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">Summary</p>
-          <div class="mt-5 grid grid-cols-2 gap-4">
-            <div class="rounded-3xl bg-slate-50 p-5">
-              <p class="text-sm text-slate-500">Total Published</p>
-              <p class="mt-2 font-display text-3xl font-bold text-slate-900">{{ posts.length }}</p>
+    <template v-else-if="posts.length > 0">
+      <!-- Featured Post (Hero) -->
+      <section class="mb-16">
+        <RouterLink :to="`/post/${featuredPost.slug}`" class="group block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md">
+          <div class="grid md:grid-cols-2">
+            <div class="relative h-64 overflow-hidden md:h-full">
+              <img :src="featuredPost.cover" :alt="featuredPost.title" class="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105" />
             </div>
-            <div class="rounded-3xl bg-slate-50 p-5">
-              <p class="text-sm text-slate-500">Latest Update</p>
-              <p class="mt-2 text-sm font-semibold text-slate-900">
-                {{ featuredPost?.publishedAt ?? '-' }}
+            <div class="flex flex-col justify-center p-8 sm:p-10">
+              <div class="mb-4 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-wide text-brand-600">
+                <span>{{ featuredPost.category }}</span>
+              </div>
+              <h2 class="mb-4 font-display text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
+                {{ featuredPost.title }}
+              </h2>
+              <p class="mb-6 line-clamp-3 text-gray-600 leading-relaxed">
+                {{ featuredPost.excerpt }}
               </p>
+              <div class="mt-auto flex items-center gap-3 text-sm text-gray-500">
+                <span class="font-medium text-gray-900">{{ featuredPost.author }}</span>
+                <span>&bull;</span>
+                <span>{{ featuredPost.publishedAt }}</span>
+                <span>&bull;</span>
+                <span>{{ getReadingTime(featuredPost.content) }}</span>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="mx-auto max-w-7xl px-6 pb-14 lg:px-10 lg:pb-20">
-      <div class="mb-8 flex items-end justify-between gap-4">
-        <div>
-          <p class="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">Latest Posts</p>
-          <h2 class="mt-2 font-display text-3xl font-bold text-slate-900">Artikel terbaru</h2>
-        </div>
-      </div>
-
-      <div v-if="error" class="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-rose-700">
-        {{ error }}
-      </div>
-
-      <div v-else class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <RouterLink
-          v-for="post in posts"
-          :key="post.id"
-          :to="`/post/${post.slug}`"
-          class="group overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 shadow-soft transition hover:-translate-y-1"
-        >
-          <img :src="post.cover" :alt="post.title" class="h-52 w-full object-cover" />
-          <div class="space-y-4 p-6">
-            <div class="flex items-center justify-between text-sm text-slate-500">
-              <span class="rounded-full bg-brand-50 px-3 py-1 font-semibold text-brand-700">
-                {{ post.category }}
-              </span>
-              <span>{{ post.publishedAt }}</span>
-            </div>
-            <h3 class="font-display text-2xl font-bold leading-snug text-slate-900">
-              {{ post.title }}
-            </h3>
-            <p class="leading-7 text-slate-600">{{ post.excerpt }}</p>
-            <p class="text-sm font-semibold text-slate-500">By {{ post.author }}</p>
           </div>
         </RouterLink>
+      </section>
+
+      <div class="mb-12 flex items-baseline justify-between border-b border-gray-200 pb-4">
+        <h3 class="font-display text-2xl font-bold text-gray-900">Latest Articles</h3>
       </div>
-    </section>
+
+      <!-- Article Grid -->
+      <section class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <!-- Post Loop -->
+        <template v-for="(post, index) in remainingPosts" :key="post.id">
+          <RouterLink
+            :to="`/post/${post.slug}`"
+            class="group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+          >
+            <div class="relative h-48 w-full overflow-hidden">
+              <img :src="post.cover" :alt="post.title" class="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+            </div>
+            <div class="flex flex-1 flex-col p-6">
+              <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-brand-600">
+                {{ post.category }}
+              </div>
+              <h3 class="font-display text-xl font-bold leading-snug text-gray-900">
+                {{ post.title }}
+              </h3>
+              <p class="mt-3 line-clamp-2 text-sm text-gray-600 leading-relaxed">
+                {{ post.excerpt }}
+              </p>
+              <div class="mt-auto pt-6 flex items-center gap-2 text-xs text-gray-500">
+                <span class="font-medium text-gray-900">{{ post.author }}</span>
+                <span>&bull;</span>
+                <span>{{ post.publishedAt }}</span>
+              </div>
+            </div>
+          </RouterLink>
+
+          <!-- Middle Ad Slot: Appears after every 3rd block in the grid (only visual structural break) -->
+          <div v-if="(index + 1) === 3 || (index + 1) === 6" class="col-span-full my-4 flex min-h-[90px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-gray-400">
+            <span class="text-xs uppercase tracking-widest font-semibold mb-1">Advertisement</span>
+            <span class="text-sm border p-1 border-gray-300 cursor-pointer">Place Ad Script Here</span>
+          </div>
+        </template>
+      </section>
+
+      <!-- Complete Fallback if no posts left to show -->
+      <div v-if="remainingPosts.length === 0 && posts.length > 0" class="text-center text-gray-500 py-10">
+        You've reached the end!
+      </div>
+    </template>
+
+    <div v-else class="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
+      <h3 class="font-display text-xl font-bold text-gray-900">No articles found</h3>
+      <p class="mt-2 text-gray-500">Check back later for new content.</p>
+    </div>
   </main>
 </template>

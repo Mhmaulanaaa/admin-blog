@@ -1,65 +1,99 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { api } from '../api'
-import { authState } from '../stores/auth'
+import { computed, onMounted, reactive, ref } from "vue";
+import { api } from "../api";
+import { authState } from "../stores/auth";
 
 const emptyForm = () => ({
-  title: '',
-  excerpt: '',
-  category: 'General',
-  author: authState.user?.name ?? 'Admin StoryFlow',
-  cover: '',
-  content: '',
+  title: "",
+  excerpt: "",
+  category: "General",
+  author: authState.user?.name ?? "Admin EasyTrends",
+  cover: "",
+  content: "",
   publishedAt: new Date().toISOString().slice(0, 10),
-  status: 'Published',
-})
+  status: "Published",
+});
 
-const posts = ref([])
-const search = ref('')
-const loading = ref(true)
-const saving = ref(false)
-const error = ref('')
-const success = ref('')
-const editingId = ref(null)
-const form = reactive(emptyForm())
+const posts = ref([]);
+const search = ref("");
+const loading = ref(true);
+const saving = ref(false);
+const generating = ref(false);
+const error = ref("");
+const success = ref("");
+const editingId = ref(null);
+const form = reactive(emptyForm());
 
 const filteredPosts = computed(() => {
-  const keyword = search.value.trim().toLowerCase()
+  const keyword = search.value.trim().toLowerCase();
 
   if (!keyword) {
-    return posts.value
+    return posts.value;
   }
 
   return posts.value.filter((post) =>
     [post.title, post.category, post.author, post.status].some((value) =>
       value.toLowerCase().includes(keyword),
     ),
-  )
-})
+  );
+});
 
-const publishedCount = computed(() => posts.value.filter((post) => post.status === 'Published').length)
+const publishedCount = computed(
+  () => posts.value.filter((post) => post.status === "Published").length,
+);
 
 function resetForm() {
-  Object.assign(form, emptyForm())
-  editingId.value = null
+  Object.assign(form, emptyForm());
+  editingId.value = null;
+  error.value = "";
+  success.value = "";
 }
 
 async function loadPosts() {
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
 
   try {
-    const payload = await api('/admin/posts')
-    posts.value = payload.posts
+    const payload = await api("/admin/posts");
+    posts.value = payload.posts;
   } catch (err) {
-    error.value = err.message
+    error.value = err.message;
   } finally {
-    loading.value = false
+    loading.value = false;
+  }
+}
+
+async function autoGenerate() {
+  const topic = window.prompt("Masukkan Topik Artikel yang ingin dibuat AI:");
+  if (!topic) return;
+
+  generating.value = true;
+  error.value = "";
+  success.value = "";
+
+  try {
+    const payload = await api("/admin/generate", {
+      method: "POST",
+      body: JSON.stringify({ topic }),
+    });
+
+    form.title = payload.title || "";
+    form.excerpt = payload.excerpt || "";
+    form.category = payload.category || "";
+    form.content = payload.content || "";
+    form.cover = payload.cover || form.cover;
+
+    success.value =
+      "Artikel berhasil di-generate secara otomatis! Silakan edit & Publish.";
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    generating.value = false;
   }
 }
 
 function startEdit(post) {
-  editingId.value = post.id
+  editingId.value = post.id;
   Object.assign(form, {
     title: post.title,
     excerpt: post.excerpt,
@@ -69,280 +103,322 @@ function startEdit(post) {
     content: post.content,
     publishedAt: post.publishedAt,
     status: post.status,
-  })
-  success.value = ''
+  });
+  success.value = "";
 }
 
 async function savePost() {
-  saving.value = true
-  error.value = ''
-  success.value = ''
+  saving.value = true;
+  error.value = "";
+  success.value = "";
 
   try {
     if (editingId.value) {
       await api(`/admin/posts/${editingId.value}`, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(form),
-      })
-      success.value = 'Posting berhasil diperbarui.'
+      });
+      success.value = "Posting berhasil diperbarui.";
     } else {
-      await api('/admin/posts', {
-        method: 'POST',
+      await api("/admin/posts", {
+        method: "POST",
         body: JSON.stringify(form),
-      })
-      success.value = 'Posting baru berhasil disimpan.'
+      });
+      success.value = "Posting baru berhasil disimpan.";
     }
 
-    resetForm()
-    await loadPosts()
+    resetForm();
+    await loadPosts();
   } catch (err) {
-    error.value = err.message
+    error.value = err.message;
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
 async function deletePost(id) {
-  const confirmed = window.confirm('Hapus posting ini?')
+  const confirmed = window.confirm("Hapus posting ini?");
 
   if (!confirmed) {
-    return
+    return;
   }
 
-  error.value = ''
-  success.value = ''
+  error.value = "";
+  success.value = "";
 
   try {
     await api(`/admin/posts/${id}`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
 
     if (editingId.value === id) {
-      resetForm()
+      resetForm();
     }
 
-    success.value = 'Posting berhasil dihapus.'
-    await loadPosts()
+    success.value = "Posting berhasil dihapus.";
+    await loadPosts();
   } catch (err) {
-    error.value = err.message
+    error.value = err.message;
   }
 }
 
-onMounted(loadPosts)
+onMounted(loadPosts);
 </script>
 
 <template>
-  <main class="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.92fr_1.08fr] lg:px-10 lg:py-16">
-    <section class="space-y-6">
-      <div class="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-soft">
-        <p class="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">Dashboard Manager</p>
-        <h1 class="mt-2 font-display text-3xl font-bold text-slate-900">
-          {{ editingId ? 'Edit posting' : 'Buat posting baru' }}
-        </h1>
-        <p class="mt-3 leading-7 text-slate-600">
-          Login sebagai <strong>{{ authState.user?.name ?? 'Admin' }}</strong>. Semua perubahan akan
-          tersimpan permanen di database SQLite backend.
+  <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div
+      class="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"
+    >
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p class="text-sm text-gray-500">
+          Welcome back, {{ authState.user?.name ?? "Admin" }}
         </p>
       </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div class="rounded-[1.5rem] border border-white/70 bg-white/90 p-6 shadow-soft">
-          <p class="text-sm text-slate-500">Total Post</p>
-          <p class="mt-2 font-display text-3xl font-bold text-slate-900">{{ posts.length }}</p>
+      <div class="flex gap-4">
+        <div class="rounded-lg bg-white px-4 py-2 border border-gray-200">
+          <span class="text-xs text-gray-500 uppercase font-semibold"
+            >Total Posts:</span
+          >
+          <span class="ml-2 font-bold text-gray-900">{{ posts.length }}</span>
         </div>
-        <div class="rounded-[1.5rem] border border-white/70 bg-white/90 p-6 shadow-soft">
-          <p class="text-sm text-slate-500">Published</p>
-          <p class="mt-2 font-display text-3xl font-bold text-slate-900">{{ publishedCount }}</p>
+        <div class="rounded-lg bg-brand-50 px-4 py-2 border border-brand-100">
+          <span class="text-xs text-brand-600 uppercase font-semibold"
+            >Published:</span
+          >
+          <span class="ml-2 font-bold text-brand-700">{{
+            publishedCount
+          }}</span>
         </div>
       </div>
+    </div>
 
-      <form class="space-y-4 rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-soft" @submit.prevent="savePost">
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700">Judul</label>
-          <input
-            v-model="form.title"
-            type="text"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
-        </div>
-
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700">Ringkasan singkat</label>
-          <textarea
-            v-model="form.excerpt"
-            rows="3"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-slate-700">Kategori</label>
-            <input
-              v-model="form.category"
-              type="text"
-              required
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-            />
+    <div class="grid gap-8 lg:grid-cols-[1fr_2fr]">
+      <!-- Form Input -->
+      <section>
+        <div
+          class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+        >
+          <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+            <h2 class="font-semibold text-gray-900">
+              {{ editingId ? "Edit Post" : "Create New Post" }}
+            </h2>
           </div>
+          <form class="p-6 space-y-4" @submit.prevent="savePost">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700"
+                >Title</label
+              >
+              <input
+                v-model="form.title"
+                type="text"
+                required
+                class="w-full rounded-md border border-gray-300 px-3 py-2 shrink shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              />
+            </div>
 
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-slate-700">Author</label>
-            <input
-              v-model="form.author"
-              type="text"
-              required
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-            />
-          </div>
-        </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700"
+                >Excerpt</label
+              >
+              <textarea
+                v-model="form.excerpt"
+                rows="2"
+                required
+                class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              ></textarea>
+            </div>
 
-        <div class="grid gap-4 md:grid-cols-2">
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal publish</label>
-            <input
-              v-model="form.publishedAt"
-              type="date"
-              required
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-            />
-          </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700"
+                  >Category</label
+                >
+                <input
+                  v-model="form.category"
+                  type="text"
+                  required
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700"
+                  >Author</label
+                >
+                <input
+                  v-model="form.author"
+                  type="text"
+                  required
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+                />
+              </div>
+            </div>
 
-          <div>
-            <label class="mb-2 block text-sm font-semibold text-slate-700">Status</label>
-            <select
-              v-model="form.status"
-              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700"
+                  >Date</label
+                >
+                <input
+                  v-model="form.publishedAt"
+                  type="date"
+                  required
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700"
+                  >Status</label
+                >
+                <select
+                  v-model="form.status"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+                >
+                  <option>Published</option>
+                  <option>Draft</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700"
+                >Cover URL</label
+              >
+              <input
+                v-model="form.cover"
+                type="url"
+                required
+                class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label class="mb-1 block text-sm font-medium text-gray-700"
+                >Content</label
+              >
+              <textarea
+                v-model="form.content"
+                rows="6"
+                required
+                class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 sm:text-sm"
+              ></textarea>
+            </div>
+
+            <div
+              v-if="error"
+              class="rounded-md bg-red-50 p-3 text-sm text-red-700"
             >
-              <option>Published</option>
-              <option>Draft</option>
-            </select>
-          </div>
-        </div>
+              {{ error }}
+            </div>
+            <div
+              v-if="success"
+              class="rounded-md bg-green-50 p-3 text-sm text-green-700"
+            >
+              {{ success }}
+            </div>
 
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700">Cover image URL</label>
-          <input
-            v-model="form.cover"
-            type="url"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
+            <div class="flex gap-3 pt-2">
+              <button
+                type="submit"
+                :disabled="saving"
+                class="flex-1 justify-center rounded-md border border-transparent bg-brand-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {{
+                  saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Update Post"
+                      : "Publish Post"
+                }}
+              </button>
+              <button
+                type="button"
+                @click="resetForm"
+                class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+              >
+                Clear
+              </button>
+            </div>
+          </form>
         </div>
+      </section>
 
-        <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700">Isi artikel</label>
-          <textarea
-            v-model="form.content"
-            rows="9"
-            required
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white"
-          />
-        </div>
-
-        <div v-if="error" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {{ error }}
-        </div>
-
-        <div v-if="success" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {{ success }}
-        </div>
-
-        <div class="flex flex-wrap gap-3 pt-2">
-          <button
-            type="submit"
-            :disabled="saving"
-            class="rounded-full bg-brand-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {{ saving ? 'Menyimpan...' : editingId ? 'Update Post' : 'Publish Post' }}
-          </button>
-          <button
-            type="button"
-            class="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-300"
-            @click="resetForm"
-          >
-            Reset
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <section class="space-y-6">
-      <div class="rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-soft">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">Content List</p>
-            <h2 class="mt-2 font-display text-3xl font-bold text-slate-900">Daftar posting</h2>
-          </div>
+      <!-- Post List -->
+      <section>
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="text-lg font-medium text-gray-900">Content Library</h2>
           <input
             v-model="search"
             type="search"
-            placeholder="Cari judul, kategori, status..."
-            class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand-400 focus:bg-white md:max-w-xs"
+            placeholder="Search posts..."
+            class="w-64 rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>
-      </div>
 
-      <div v-if="loading" class="space-y-4">
-        <div class="h-44 animate-pulse rounded-[1.75rem] bg-slate-200"></div>
-        <div class="h-44 animate-pulse rounded-[1.75rem] bg-slate-100"></div>
-      </div>
+        <div v-if="loading" class="space-y-3">
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="h-24 rounded-lg bg-gray-200 animate-pulse"
+          ></div>
+        </div>
 
-      <div v-else class="space-y-4">
-        <article
-          v-for="post in filteredPosts"
-          :key="post.id"
-          class="rounded-[1.75rem] border border-white/70 bg-white/90 p-6 shadow-soft"
-        >
-          <div class="flex flex-col gap-5 md:flex-row">
-            <img
-              :src="post.cover"
-              :alt="post.title"
-              class="h-40 w-full rounded-[1.25rem] object-cover md:w-52"
-            />
-            <div class="flex-1">
-              <div class="flex flex-wrap items-center gap-2 text-sm">
-                <span class="rounded-full bg-brand-50 px-3 py-1 font-semibold text-brand-700">
-                  {{ post.category }}
-                </span>
-                <span
-                  class="rounded-full px-3 py-1 font-semibold"
-                  :class="
-                    post.status === 'Published'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-amber-50 text-amber-700'
-                  "
-                >
-                  {{ post.status }}
-                </span>
-              </div>
-              <h3 class="mt-4 font-display text-2xl font-bold text-slate-900">{{ post.title }}</h3>
-              <p class="mt-3 leading-7 text-slate-600">{{ post.excerpt }}</p>
-              <div class="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                <span>{{ post.author }}</span>
-                <span>{{ post.publishedAt }}</span>
-                <span>/post/{{ post.slug }}</span>
-              </div>
-              <div class="mt-5 flex flex-wrap gap-3">
-                <button
-                  class="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  @click="startEdit(post)"
-                >
-                  Edit
-                </button>
-                <button
-                  class="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-                  @click="deletePost(post.id)"
-                >
-                  Hapus
-                </button>
+        <div v-else class="space-y-3">
+          <div
+            v-for="post in filteredPosts"
+            :key="post.id"
+            class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition"
+          >
+            <div class="flex items-center gap-4">
+              <img
+                :src="post.cover"
+                class="h-16 w-16 rounded-md object-cover flex-shrink-0"
+              />
+              <div>
+                <h3 class="font-bold text-gray-900">{{ post.title }}</h3>
+                <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="rounded bg-gray-100 px-2 py-0.5">{{
+                    post.category
+                  }}</span>
+                  <span
+                    :class="
+                      post.status === 'Published'
+                        ? 'text-green-600'
+                        : 'text-amber-600'
+                    "
+                    >{{ post.status }}</span
+                  >
+                  <span>&bull;</span>
+                  <span>{{ post.publishedAt }}</span>
+                </div>
               </div>
             </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                @click="startEdit(post)"
+                class="flex-1 sm:flex-none rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50"
+              >
+                Edit
+              </button>
+              <button
+                @click="deletePost(post.id)"
+                class="flex-1 sm:flex-none rounded-md bg-white px-3 py-1.5 text-sm font-medium text-red-600 border border-gray-300 hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        </article>
-      </div>
-    </section>
+
+          <div
+            v-if="filteredPosts.length === 0"
+            class="py-8 text-center text-sm text-gray-500 border border-dashed border-gray-300 rounded-xl"
+          >
+            No posts found. Create one.
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 </template>
